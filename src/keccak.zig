@@ -3,12 +3,12 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var alloc = gpa.allocator();
 const StateArrayType = std.ArrayList(std.ArrayList(std.ArrayList(i32)));
 
-fn rc(t: i32) i32 {
+pub fn rc(t: i32) u8 {
     const tmod: i32 = t % 255;
     if (tmod == 0) {
         return 1;
     }
-    var R: std.ArrayList(i32) = .{.{ 1, 0, 0, 0, 0, 0, 0, 0 }};
+    var R: std.ArrayList(u8) = .{.{ 1, 0, 0, 0, 0, 0, 0, 0 }};
     defer R.deinit();
     var i: i32 = 1;
     while (i <= tmod) {
@@ -25,9 +25,9 @@ fn rc(t: i32) i32 {
     return R.items[0];
 }
 
-fn iota(state_array: *StateArrayType, i: usize) void {
+pub fn iota(state_array: *StateArrayType, i: usize) void {
     const w: usize = state_array.*.items[0].items[0].items[0].len;
-    var RC = std.ArrayList(i32).init(alloc);
+    var RC = std.ArrayList(u8).init(alloc);
     defer RC.deinit();
     const l: usize = std.math.log(w);
     RC.appendNTimes(0, w);
@@ -45,7 +45,7 @@ fn iota(state_array: *StateArrayType, i: usize) void {
     }
 }
 
-fn chi(state_array: *StateArrayType) void {
+pub fn chi(state_array: *StateArrayType) void {
     const w: usize = state_array.*.items[0].items[0].items[0].len;
     var x: usize = 0;
     while (x < 5) {
@@ -55,9 +55,9 @@ fn chi(state_array: *StateArrayType) void {
             const actual_y: usize = (y + 2) % 5;
             var z: usize = 0;
             while (z < w) {
-                const first: i32 = state_array.*.items[(actual_x + 1) % 5].items[actual_y].items[z];
-                const second: i32 = state_array.*.items[(actual_x + 2) % 5].items[actual_y].items[z];
-                const val: i32 = (first ^ 1) * second;
+                const first: u8 = state_array.*.items[(actual_x + 1) % 5].items[actual_y].items[z];
+                const second: u8 = state_array.*.items[(actual_x + 2) % 5].items[actual_y].items[z];
+                const val: u8 = (first ^ 1) * second;
                 state_array.*.items[actual_x].items[actual_y].items[z] ^= val;
                 z += 1;
             }
@@ -66,7 +66,7 @@ fn chi(state_array: *StateArrayType) void {
     }
 }
 
-fn pi(state_array: *StateArrayType) void {
+pub fn pi(state_array: *StateArrayType) void {
     const w: usize = state_array.*.items[0].items[0].items[0].len;
     var x: i32 = 0;
     while (x < 5) {
@@ -76,7 +76,7 @@ fn pi(state_array: *StateArrayType) void {
             const actual_y: i32 = (y + 2) % 5;
             var z: i32 = 0;
             while (z < w) {
-                var val: i32 = state_array.*.items[(actual_x + 3 * actual_y) % 5].items[actual_x].items[z];
+                var val: u8 = state_array.*.items[(actual_x + 3 * actual_y) % 5].items[actual_x].items[z];
                 state_array.*.items[actual_x].items[actual_y].items[z] = val;
                 z += 1;
             }
@@ -86,7 +86,7 @@ fn pi(state_array: *StateArrayType) void {
     }
 }
 
-fn rho(state_array: *StateArrayType) void {
+pub fn rho(state_array: *StateArrayType) void {
     const w: usize = state_array.*.items[0].items[0].items[0].len;
     var x: usize = 1;
     var y: usize = 0;
@@ -106,28 +106,28 @@ fn rho(state_array: *StateArrayType) void {
     }
 }
 
-fn theta(state_array: *StateArrayType) void {
+pub fn theta(state_array: *StateArrayType) void {
     const w: usize = state_array.*.items[0].items[0].items[0].len;
-    var C = [5][5]i32{
-        [5]i32{ 0, 0, 0, 0, 0 },
-        [5]i32{ 0, 0, 0, 0, 0 },
-        [5]i32{ 0, 0, 0, 0, 0 },
-        [5]i32{ 0, 0, 0, 0, 0 },
-        [5]i32{ 0, 0, 0, 0, 0 },
+    var C = [5][5]u8{
+        [5]u8{ 0, 0, 0, 0, 0 },
+        [5]u8{ 0, 0, 0, 0, 0 },
+        [5]u8{ 0, 0, 0, 0, 0 },
+        [5]u8{ 0, 0, 0, 0, 0 },
+        [5]u8{ 0, 0, 0, 0, 0 },
     };
-    var D = [5][5]i32{
-        [5]i32{ 0, 0, 0, 0, 0 },
-        [5]i32{ 0, 0, 0, 0, 0 },
-        [5]i32{ 0, 0, 0, 0, 0 },
-        [5]i32{ 0, 0, 0, 0, 0 },
-        [5]i32{ 0, 0, 0, 0, 0 },
+    var D = [5][5]u8{
+        [5]u8{ 0, 0, 0, 0, 0 },
+        [5]u8{ 0, 0, 0, 0, 0 },
+        [5]u8{ 0, 0, 0, 0, 0 },
+        [5]u8{ 0, 0, 0, 0, 0 },
+        [5]u8{ 0, 0, 0, 0, 0 },
     };
     var x: usize = 0;
     while (x < 5) {
         const actual_x: usize = (x + 2) % 5;
         var z: usize = 0;
         while (z < w) {
-            var xor: i32 = 0;
+            var xor: u8 = 0;
             var y: usize = 0;
             while (y < 5) {
                 const actual_y: usize = (y + 2) % 5;
@@ -169,18 +169,16 @@ fn theta(state_array: *StateArrayType) void {
     }
 }
 
-fn RND(state_array: *StateArrayType, i: usize) void {
+pub fn RND(state_array: *StateArrayType, i: usize) void {
     iota(chi(pi(rho(theta(state_array)))), i);
 }
 
-fn keccak(b: usize, n: usize, s: []u8) std.ArrayList(i32) {
+pub fn keccak(b: usize, n: usize, s: []u8) std.ArrayList(u8) {
     const w: usize = b / 25;
     const l: usize = std.math.log2(w);
     var state_array: StateArrayType = StateArrayType.init(alloc);
-    defer state_array.deinit();
-    var row_state_array = std.ArrayList(std.ArrayList(i32)).init(alloc);
-    var col_state_array = try std.ArrayList(i32).init(alloc);
-    defer col_state_array.deinit();
+    var row_state_array = std.ArrayList(std.ArrayList(u8)).init(alloc);
+    var col_state_array = try std.ArrayList(u8).init(alloc);
     try col_state_array.appendNTimes(0, w);
     while (row_state_array.items.len < 5) {
         try row_state_array.append(col_state_array.clone());
@@ -230,20 +228,10 @@ fn keccak(b: usize, n: usize, s: []u8) std.ArrayList(i32) {
         }
         y_s += 1;
     }
-
-    for (state_array) |x_row| {
-        for (x_row) |y_row| {
-            for (y_row) |z_row| {
-                z_row.deinit();
-            }
-            y_row.deinit();
-        }
-        x_row.deinit();
-    }
     return S;
 }
 
-fn sponge(f: fn () void, pad: fn () void, r: usize, n: []u8, d: usize, n_len: usize, b: usize) void {
+fn sponge(f: fn (b: usize, n: usize, s: []u8) void, pad: fn (x: i32, m: i32) void, r: usize, n: []u8, d: usize, b: usize) std.ArrayList(i32) {
     var P = std.ArrayList(i32).init(alloc);
     defer P.deinit();
     for (n) |val| {
@@ -262,7 +250,7 @@ fn sponge(f: fn () void, pad: fn () void, r: usize, n: []u8, d: usize, n_len: us
     defer splitr.deinit();
     var section: usize = 0;
     while (section < lenpr) {
-        var subP = std.ArrayList(i32).init(alloc);
+        var subP = std.ArrayList(u8).init(alloc);
         defer subP.deinit();
         var pidx: usize = 0;
         while (pidx < r) {
@@ -270,13 +258,52 @@ fn sponge(f: fn () void, pad: fn () void, r: usize, n: []u8, d: usize, n_len: us
             pidx += 1;
         }
         splitr.append(subP.clone());
+        section += 1;
+    }
+    var i: usize = 0;
+    while (i < lenpr) {
+        string_xor(S, splitr[i]);
+        var new_S = f(b, S.items.len, S.items);
+        for (new_S) |val, index| {
+            S.items[index] = val;
+        }
+        i += 1;
+    }
+    var Z = std.ArrayList(u8).init(alloc);
+    defer Z.deinit();
+    while (true) {
+        var ri: usize = 0;
+        while (ri < r) {
+            Z.append(S.items[ri]);
+            ri += 1;
+        }
+        if (d <= Z.items.len) {
+            var truncd = std.ArrayList(u8).init(alloc);
+            var tdi: usize = 0;
+            while (tdi < d) {
+                truncd.append(Z.items[tdi]);
+                tdi += 1;
+            }
+            return truncd;
+        }
+        var new_S = f(b, S.items.len, S.items);
+        for (new_S) |val, index| {
+            S.items[index] = val;
+        }
     }
 }
 
-fn pad10(x: i32, m: i32) std.ArrayList(i32) {
+/// this function xor's string_one and string_two and keeps result in string_one
+pub fn string_xor(string_one: *std.ArrayList(u8), string_two: *std.ArrayList(u8)) void {
+    var index: usize = 0;
+    while (index < string_one.items.len) {
+        string_one.items[index] ^= string_two.items[index];
+    }
+}
+
+pub fn pad10(x: i32, m: i32) std.ArrayList(u8) {
     var j: i32 = (-m - 2) % x;
-    var P = std.ArrayList(i32).init(alloc);
-    defer P.deinit();
+    var P = std.ArrayList(u8).init(alloc);
     P.append(1);
     while (P.items.len - 1 < j) {
         P.append(0);
@@ -291,4 +318,3 @@ fn pad10(x: i32, m: i32) std.ArrayList(i32) {
 // SHA3-256(M)= KECCAK[512](M||01, 256);
 // SHA3-384(M)= KECCAK[768](M||01, 384);
 // SHA3-512(M)= KECCAK[1024](M||01, 512).
-pub fn main() !void {}
