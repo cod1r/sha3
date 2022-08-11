@@ -246,7 +246,7 @@ fn sponge(f: fn (b: usize, n: usize, s: []u8) void, pad: fn (x: i32, m: i32) voi
     while (S.items.len < b) {
         S.append(0);
     }
-    var splitr = std.ArrayList(std.ArrayList(i32)).init(alloc);
+    var splitr = std.ArrayList(std.ArrayList(u8)).init(alloc);
     defer splitr.deinit();
     var section: usize = 0;
     while (section < lenpr) {
@@ -298,17 +298,18 @@ pub fn string_xor(string_one: *std.ArrayList(u8), string_two: *std.ArrayList(u8)
     var index: usize = 0;
     while (index < string_one.items.len) {
         string_one.items[index] ^= string_two.items[index];
+        index += 1;
     }
 }
 
-pub fn pad10(x: i32, m: i32) std.ArrayList(u8) {
-    var j: i32 = (-m - 2) % x;
+pub fn pad10(x: i32, m: i32) !std.ArrayList(u8) {
+    var j: i32 = @mod(-m - 2, x);
     var P = std.ArrayList(u8).init(alloc);
-    P.append(1);
+    try P.append(1);
     while (P.items.len - 1 < j) {
-        P.append(0);
+        try P.append(0);
     }
-    P.append(1);
+    try P.append(1);
     return P;
 }
 
@@ -318,3 +319,28 @@ pub fn pad10(x: i32, m: i32) std.ArrayList(u8) {
 // SHA3-256(M)= KECCAK[512](M||01, 256);
 // SHA3-384(M)= KECCAK[768](M||01, 384);
 // SHA3-512(M)= KECCAK[1024](M||01, 512).
+test "testing string_xor" {
+    var string_one = std.ArrayList(u8).init(alloc);
+    try string_one.appendNTimes(0, 4);
+    var string_two = std.ArrayList(u8).init(alloc);
+    try string_two.appendNTimes(0, 4);
+    string_one.items[0] = 1;
+    string_two.items[0] = 1;
+    string_two.items[1] = 1;
+    string_two.items[2] = 1;
+    string_two.items[3] = 1;
+    string_xor(&string_one, &string_two);
+    try std.testing.expect(string_one.items[0] == 0);
+    var index: usize = 1;
+    while (index < 4) {
+        try std.testing.expect(string_one.items[index] == 1);
+        index += 1;
+    }
+}
+
+test "testing pad10" {
+    var pad10f = try pad10(2, 2);
+    try std.testing.expect(pad10f.items.len == 2);
+    var pad10s = try pad10(2, 3);
+    try std.testing.expect(pad10s.items.len == 3);
+}
