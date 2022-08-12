@@ -42,3 +42,54 @@ test "testing keccak sha3-256; input = ''" {
     try std.testing.expect(str_digest.items.len == 64);
     try std.testing.expect(digest.items.len == 256);
 }
+
+test "testing keccak sha3-256; input = 'hello' but not with bit string input" {
+    const str = [_]u8{ 'h', 'e', 'l', 'l', 'o' };
+    var arrl = std.ArrayList(u8).init(alloc);
+    for (str) |val| {
+        try arrl.append(val);
+    }
+    try arrl.append(0);
+    try arrl.append(1);
+    var digest = try sha3_256(arrl);
+    defer digest.deinit();
+    var str_digest = try keccak.convertToHex(digest);
+    defer str_digest.deinit();
+    std.debug.print("\n{s}\n", .{str_digest.items});
+    try std.testing.expect(str_digest.items.len == 64);
+    try std.testing.expect(digest.items.len == 256);
+}
+
+test "testing keccak sha3-256; input = 'jasonho' but not with bit string input" {
+    const str = [_]u8{ 'j', 'a', 's', 'o', 'n', 'h', 'o' };
+    var arrl = std.ArrayList(u8).init(alloc);
+    for (str) |val| {
+        try arrl.append(val);
+    }
+    try arrl.append(0);
+    try arrl.append(1);
+    var digest = try sha3_256(arrl);
+    defer digest.deinit();
+    var str_digest = try keccak.convertToHex(digest);
+    defer str_digest.deinit();
+    std.debug.print("\n{s}\n", .{str_digest.items});
+    try std.testing.expect(str_digest.items.len == 64);
+    try std.testing.expect(digest.items.len == 256);
+}
+
+test "testing keccak sha3-256; input = '' but not with bit string input" {
+    const str = [_]u8{};
+    var arrl = std.ArrayList(u8).init(alloc);
+    for (str) |val| {
+        try arrl.append(val);
+    }
+    try arrl.append(0);
+    try arrl.append(1);
+    var digest = try sha3_256(arrl);
+    defer digest.deinit();
+    var str_digest = try keccak.convertToHex(digest);
+    defer str_digest.deinit();
+    std.debug.print("\n{s}\n", .{str_digest.items});
+    try std.testing.expect(str_digest.items.len == 64);
+    try std.testing.expect(digest.items.len == 256);
+}

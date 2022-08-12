@@ -101,7 +101,9 @@ pub fn rho(state_array: *StateArrayType) void {
         while (z < w) {
             var actual_x: usize = (x + 2) % 5;
             var actual_y: usize = (y + 2) % 5;
-            state_array.*.items[actual_x].items[actual_y].items[z] = state_array.*.items[actual_x].items[actual_y].items[@intCast(usize, @mod(@intCast(i32, z) - @divFloor(@intCast(i32, t) + 1 * (@intCast(i32, t) + 2), 2), @intCast(i32, w)))];
+            var t_sqrd: i32 = @divFloor((@intCast(i32, t) + 1) * (@intCast(i32, t) + 2), 2);
+            var modified_z: usize = @intCast(usize, @mod(@intCast(i32, z) - t_sqrd, @intCast(i32, w)));
+            state_array.*.items[actual_x].items[actual_y].items[z] = state_array.*.items[actual_x].items[actual_y].items[modified_z];
             z += 1;
         }
         var temp: usize = x;
@@ -152,9 +154,9 @@ pub fn theta(state_array: *StateArrayType) !void {
         const actual_x_D: usize = (x_D + 2) % 5;
         var z_D: usize = 0;
         while (z_D < w) {
-            var xor_D: u8 = 0;
-            xor_D ^= C.items[@intCast(usize, @mod(@intCast(i32, actual_x_D) - 1, 5))].items[z_D] ^ C.items[(actual_x_D + 1) % 5].items[@intCast(usize, @mod(@intCast(i32, z_D) - 1, 5))];
-            D.items[actual_x_D].items[z_D] = xor_D;
+            var first: u8 = C.items[@intCast(usize, @mod(@intCast(i32, actual_x_D) - 1, 5))].items[z_D];
+            var second: u8 = C.items[(actual_x_D + 1) % 5].items[@intCast(usize, @mod(@intCast(i32, z_D) - 1, 5))];
+            D.items[actual_x_D].items[z_D] = first ^ second;
             z_D += 1;
         }
         x_D += 1;
@@ -236,7 +238,7 @@ pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
         var actual_y_s: usize = (y_s + 2) % 5;
         var x_s: usize = 0;
         while (x_s < 5) {
-            var actual_x_s: usize = (y_s + 2) % 5;
+            var actual_x_s: usize = (x_s + 2) % 5;
             var z_s: usize = 0;
             while (z_s < w) {
                 try S.append(state_array.items[actual_x_s].items[actual_y_s].items[z_s]);
@@ -256,12 +258,18 @@ pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
     return S;
 }
 
-pub fn sponge(f: fn (b: usize, n: usize, s: []u8) anyerror!std.ArrayList(u8), pad: fn (x: i32, m: i32) anyerror!std.ArrayList(u8), r: usize, n: []u8, d: usize, b: usize, num_rounds: usize) !std.ArrayList(u8) {
+pub fn sponge(
+    f: fn (b: usize, n: usize, s: []u8) anyerror!std.ArrayList(u8),
+    pad: fn (x: i32, m: i32) anyerror!std.ArrayList(u8),
+    r: usize,
+    n: []u8,
+    d: usize,
+    b: usize,
+    num_rounds: usize,
+) !std.ArrayList(u8) {
     var P = std.ArrayList(u8).init(alloc);
     defer P.deinit();
-    for (n) |val| {
-        try P.append(val);
-    }
+    try P.appendSlice(n);
     try P.appendSlice((try pad(@intCast(i32, r), @intCast(i32, n.len))).items);
     var lenpr: i32 = @divFloor(@intCast(i32, P.items.len), @intCast(i32, r));
     var c: usize = b - r;
