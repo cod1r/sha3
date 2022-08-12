@@ -2,6 +2,8 @@ const std = @import("std");
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var alloc = gpa.allocator();
 const StateArrayType = std.ArrayList(std.ArrayList(std.ArrayList(u8)));
+//! Keep track of where you place 'defer <array list>.deninit()' because that might mess up
+//! the result that you get.
 
 pub fn rc(t: usize) !u8 {
     const tmod: usize = t % 255;
