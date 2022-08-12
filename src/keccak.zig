@@ -61,7 +61,7 @@ pub fn chi(state_array: *StateArrayType) void {
             while (z < w) {
                 const first: u8 = state_array.*.items[(actual_x + 1) % 5].items[actual_y].items[z];
                 const second: u8 = state_array.*.items[(actual_x + 2) % 5].items[actual_y].items[z];
-                const val: u8 = (first ^ 1) * second;
+                const val: u8 = (first ^ 1) & second;
                 state_array.*.items[actual_x].items[actual_y].items[z] ^= val;
                 z += 1;
             }
@@ -275,9 +275,7 @@ pub fn sponge(
     var c: usize = b - r;
     var S = std.ArrayList(u8).init(alloc);
     defer S.deinit();
-    while (S.items.len < b) {
-        try S.append(0);
-    }
+    try S.appendNTimes(0, b);
     var splitr = std.ArrayList(std.ArrayList(u8)).init(alloc);
     defer splitr.deinit();
     var section: usize = 0;
@@ -289,13 +287,16 @@ pub fn sponge(
             try subP.append(P.items[pidx + (section * r)]);
             pidx += 1;
         }
-        try subP.appendNTimes(0, c);
         try splitr.append(try clone(subP));
         section += 1;
     }
     var i: usize = 0;
     while (i < lenpr) {
-        string_xor(&S, &splitr.items[i]);
+        var concat_zero = try clone(splitr.items[i]);
+        defer concat_zero.deinit();
+        try concat_zero.appendNTimes(0, c);
+        std.debug.assert(concat_zero.items.len == 1600);
+        string_xor(&S, &concat_zero);
         var new_S = try f(b, num_rounds, S.items);
         for (new_S.items) |val, index| {
             S.items[index] = val;
@@ -305,17 +306,12 @@ pub fn sponge(
     var Z = std.ArrayList(u8).init(alloc);
     defer Z.deinit();
     while (true) {
-        var ri: usize = 0;
-        while (ri < r) {
-            try Z.append(S.items[ri]);
-            ri += 1;
-        }
+        try Z.appendSlice(S.items[0..r]);
         if (d <= Z.items.len) {
             var truncd = std.ArrayList(u8).init(alloc);
-            var tdi: usize = 0;
-            while (tdi < d) {
-                try truncd.append(Z.items[tdi]);
-                tdi += 1;
+            try truncd.appendSlice(Z.items[0..d]);
+            for (splitr.items) |subP| {
+                subP.deinit();
             }
             return truncd;
         }
