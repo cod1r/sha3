@@ -365,14 +365,18 @@ pub fn convertToBitStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     return new_arr;
 }
 
-pub fn convertToStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
+pub fn convertToHex(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     var str = std.ArrayList(u8).init(alloc);
     const len_per_char: usize = 4;
     var value: u8 = 0;
     var place: u8 = len_per_char - 1;
     for (arr.items) |val, index| {
         if (index % len_per_char == 0 and index > 0) {
-            try str.append(value);
+            if (value >= 10) {
+                try str.append(97 + (16 - value));
+            } else {
+                try str.append(48 + value);
+            }
             value = 0;
             place = len_per_char - 1;
         }
@@ -381,7 +385,11 @@ pub fn convertToStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
             place -= 1;
         }
     }
-    try str.append(value);
+    if (value >= 10) {
+        try str.append(97 + (16 - value));
+    } else {
+        try str.append(48 + value);
+    }
     return str;
 }
 
@@ -421,4 +429,3 @@ test "testing rc" {
     var rconst: u8 = try rc(256);
     try std.testing.expect(rconst == 0);
 }
-

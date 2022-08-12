@@ -9,7 +9,7 @@ pub fn sha3_256(message: std.ArrayList(u8)) !std.ArrayList(u8) {
     return digest;
 }
 
-test "testing keccak sha3-256" {
+test "testing keccak sha3-256; input = 'hello'" {
     const str = [_]u8{ 'h', 'e', 'l', 'l', 'o' };
     var arrl = std.ArrayList(u8).init(alloc);
     for (str) |val| {
@@ -20,13 +20,25 @@ test "testing keccak sha3-256" {
     try bitstr.append(1);
     var digest = try sha3_256(bitstr);
     defer digest.deinit();
-    var str_digest = try keccak.convertToStr(digest);
+    var str_digest = try keccak.convertToHex(digest);
     defer str_digest.deinit();
-    std.debug.print("\n", .{});
-    for (str_digest.items) |val| {
-        std.debug.print("{c} ", .{val + 48});
-    }
-    std.debug.print("\n", .{});
+    std.debug.print("\n{s}\n", .{str_digest.items});
+    try std.testing.expect(str_digest.items.len == 64);
+    try std.testing.expect(digest.items.len == 256);
+}
+
+test "testing keccak sha3-256; input = ''" {
+    const str = [_]u8{};
+    var arrl = std.ArrayList(u8).init(alloc);
+    try arrl.appendSlice(str[0..]);
+    var bitstr = try keccak.convertToBitStr(arrl);
+    try bitstr.append(0);
+    try bitstr.append(1);
+    var digest = try sha3_256(bitstr);
+    defer digest.deinit();
+    var str_digest = try keccak.convertToHex(digest);
+    defer str_digest.deinit();
+    std.debug.print("\n{s}\n", .{str_digest.items});
     try std.testing.expect(str_digest.items.len == 64);
     try std.testing.expect(digest.items.len == 256);
 }
