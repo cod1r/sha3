@@ -159,6 +159,7 @@ pub fn theta(state_array: *StateArrayType) !void {
         }
         x_D += 1;
     }
+
     var x_final: usize = 0;
     while (x_final < 5) {
         var actual_x_final: usize = (x_final + 2) % 5;
@@ -347,13 +348,17 @@ pub fn clone(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
 pub fn convertToBitStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     var new_arr_rev = std.ArrayList(u8).init(alloc);
     defer new_arr_rev.deinit();
-    for (arr.items) |val| {
-        var ascii_val = val;
-        var cnt: usize = 0;
-        while (cnt < 8) {
-            try new_arr_rev.append(ascii_val & 1);
-            ascii_val >>= 1;
-            cnt += 1;
+    if (arr.items.len > 0) {
+        var idx_back: usize = 0;
+        while (idx_back < arr.items.len) {
+            var ascii_val = arr.items[arr.items.len - 1 - idx_back];
+            var cnt: usize = 0;
+            while (cnt < 8) {
+                try new_arr_rev.append(ascii_val & 1);
+                ascii_val >>= 1;
+                cnt += 1;
+            }
+            idx_back += 1;
         }
     }
     var new_arr = std.ArrayList(u8).init(alloc);
@@ -373,8 +378,10 @@ pub fn convertToHex(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     for (arr.items) |val, index| {
         if (index % len_per_char == 0 and index > 0) {
             if (value >= 10) {
+                std.debug.assert(value >= 10 and value < 16);
                 try str.append(97 + (16 - value));
             } else {
+                std.debug.assert(value >= 0 and value < 10);
                 try str.append(48 + value);
             }
             value = 0;
@@ -386,8 +393,10 @@ pub fn convertToHex(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
         }
     }
     if (value >= 10) {
+        std.debug.assert(value >= 10 and value < 16);
         try str.append(97 + (16 - value));
     } else {
+        std.debug.assert(value >= 0 and value < 10);
         try str.append(48 + value);
     }
     return str;
@@ -428,4 +437,40 @@ test "testing pad101" {
 test "testing rc" {
     var rconst: u8 = try rc(256);
     try std.testing.expect(rconst == 0);
+}
+
+test "testing convertToBitStr; input = 'hello'" {
+    // 0110100001100101011011000110110001101111 - correct result
+    const correct = [_]u8{ 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1 };
+    const str = [_]u8{ 'h', 'e', 'l', 'l', 'o' };
+    var arrl = std.ArrayList(u8).init(alloc);
+    try arrl.appendSlice(str[0..]);
+    var bitstr = try convertToBitStr(arrl);
+    std.debug.print("\n", .{});
+    for (bitstr.items) |val| {
+        std.debug.print("{}", .{val});
+    }
+    std.debug.print("\n", .{});
+    for (bitstr.items) |val, index| {
+        try std.testing.expect(val == correct[index]);
+    }
+    try std.testing.expect(bitstr.items.len == 40);
+}
+
+test "testing convertToBitStr; input = 'jason'" {
+    // 0110101001100001011100110110111101101110 - correct result
+    const correct = [_]u8{ 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0 };
+    const str = [_]u8{ 'j', 'a', 's', 'o', 'n' };
+    var arrl = std.ArrayList(u8).init(alloc);
+    try arrl.appendSlice(str[0..]);
+    var bitstr = try convertToBitStr(arrl);
+    std.debug.print("\n", .{});
+    for (bitstr.items) |val| {
+        std.debug.print("{}", .{val});
+    }
+    std.debug.print("\n", .{});
+    for (bitstr.items) |val, index| {
+        try std.testing.expect(val == correct[index]);
+    }
+    try std.testing.expect(bitstr.items.len == 40);
 }

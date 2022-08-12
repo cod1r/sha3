@@ -5,7 +5,7 @@ var alloc = gpa.allocator();
 
 pub fn sha3_256(message: std.ArrayList(u8)) !std.ArrayList(u8) {
     var bit_str = try keccak.convertToBitStr(message);
-    var digest = try keccak.sponge(keccak.keccak, keccak.pad101, 1600 - 2 * 256, bit_str.items, 256, 1600, 24);
+    var digest = try keccak.sponge(keccak.keccak, keccak.pad101, 1600 - (2 * 256), bit_str.items, 256, 1600, 24);
     return digest;
 }
 
