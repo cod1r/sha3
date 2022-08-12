@@ -1,39 +1,41 @@
 const std = @import("std");
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var alloc = gpa.allocator();
-const StateArrayType = std.ArrayList(std.ArrayList(std.ArrayList(i32)));
+const StateArrayType = std.ArrayList(std.ArrayList(std.ArrayList(u8)));
 
-pub fn rc(t: i32) u8 {
-    const tmod: i32 = t % 255;
+pub fn rc(t: usize) !u8 {
+    const tmod: usize = t % 255;
     if (tmod == 0) {
         return 1;
     }
-    var R: std.ArrayList(u8) = .{.{ 1, 0, 0, 0, 0, 0, 0, 0 }};
+    var R: std.ArrayList(u8) = std.ArrayList(u8).init(alloc);
+    try R.append(1);
+    try R.appendNTimes(0, 7);
     defer R.deinit();
-    var i: i32 = 1;
+    var i: usize = 1;
     while (i <= tmod) {
-        R.insert(0, 0);
+        try R.insert(0, 0);
         R.items[0] ^= R.items[8];
         R.items[4] ^= R.items[8];
         R.items[5] ^= R.items[8];
         R.items[6] ^= R.items[8];
-        while (R.items.len > 8) {
-            R.pop();
+        if (R.items.len > 8) {
+            _ = R.pop();
         }
         i += 1;
     }
     return R.items[0];
 }
 
-pub fn iota(state_array: *StateArrayType, i: usize) void {
-    const w: usize = state_array.*.items[0].items[0].items[0].len;
+pub fn iota(state_array: *StateArrayType, i: usize) !void {
+    const w: usize = state_array.*.items[0].items[0].items.len;
     var RC = std.ArrayList(u8).init(alloc);
     defer RC.deinit();
-    const l: usize = std.math.log(w);
-    RC.appendNTimes(0, w);
+    const l: usize = std.math.log2(w);
+    try RC.appendNTimes(0, w);
     var j: usize = 0;
     while (j <= l) {
-        RC.items[std.math.pow(2, j)] = rc(j + 7 * i);
+        RC.items[std.math.pow(usize, 2, j) - 1] = try rc(j + 7 * i);
         j += 1;
     }
     var z: usize = 0;
@@ -46,7 +48,7 @@ pub fn iota(state_array: *StateArrayType, i: usize) void {
 }
 
 pub fn chi(state_array: *StateArrayType) void {
-    const w: usize = state_array.*.items[0].items[0].items[0].len;
+    const w: usize = state_array.*.items[0].items[0].items.len;
     var x: usize = 0;
     while (x < 5) {
         const actual_x: usize = (x + 2) % 5;
@@ -63,18 +65,19 @@ pub fn chi(state_array: *StateArrayType) void {
             }
             y += 1;
         }
+        x += 1;
     }
 }
 
 pub fn pi(state_array: *StateArrayType) void {
-    const w: usize = state_array.*.items[0].items[0].items[0].len;
-    var x: i32 = 0;
+    const w: usize = state_array.*.items[0].items[0].items.len;
+    var x: usize = 0;
     while (x < 5) {
-        const actual_x: i32 = (x + 2) % 5;
-        var y: i32 = 0;
+        const actual_x: usize = (x + 2) % 5;
+        var y: usize = 0;
         while (y < 5) {
-            const actual_y: i32 = (y + 2) % 5;
-            var z: i32 = 0;
+            const actual_y: usize = (y + 2) % 5;
+            var z: usize = 0;
             while (z < w) {
                 var val: u8 = state_array.*.items[(actual_x + 3 * actual_y) % 5].items[actual_x].items[z];
                 state_array.*.items[actual_x].items[actual_y].items[z] = val;
@@ -87,7 +90,7 @@ pub fn pi(state_array: *StateArrayType) void {
 }
 
 pub fn rho(state_array: *StateArrayType) void {
-    const w: usize = state_array.*.items[0].items[0].items[0].len;
+    const w: usize = state_array.*.items[0].items[0].items.len;
     var x: usize = 1;
     var y: usize = 0;
     var t: usize = 0;
@@ -96,7 +99,7 @@ pub fn rho(state_array: *StateArrayType) void {
         while (z < w) {
             var actual_x: usize = (x + 2) % 5;
             var actual_y: usize = (y + 2) % 5;
-            state_array.*.items[actual_x].items[actual_y].items[z] = state_array.*.items[actual_x][actual_y][(z - (t + 1) * (t + 2) / 2) % w];
+            state_array.*.items[actual_x].items[actual_y].items[z] = state_array.*.items[actual_x].items[actual_y].items[@intCast(usize, @mod(@intCast(i32, z) - @divFloor(@intCast(i32, t) + 1 * (@intCast(i32, t) + 2), 2), @intCast(i32, w)))];
             z += 1;
         }
         var temp: usize = x;
@@ -106,22 +109,24 @@ pub fn rho(state_array: *StateArrayType) void {
     }
 }
 
-pub fn theta(state_array: *StateArrayType) void {
-    const w: usize = state_array.*.items[0].items[0].items[0].len;
-    var C = [5][5]u8{
-        [5]u8{ 0, 0, 0, 0, 0 },
-        [5]u8{ 0, 0, 0, 0, 0 },
-        [5]u8{ 0, 0, 0, 0, 0 },
-        [5]u8{ 0, 0, 0, 0, 0 },
-        [5]u8{ 0, 0, 0, 0, 0 },
-    };
-    var D = [5][5]u8{
-        [5]u8{ 0, 0, 0, 0, 0 },
-        [5]u8{ 0, 0, 0, 0, 0 },
-        [5]u8{ 0, 0, 0, 0, 0 },
-        [5]u8{ 0, 0, 0, 0, 0 },
-        [5]u8{ 0, 0, 0, 0, 0 },
-    };
+pub fn theta(state_array: *StateArrayType) !void {
+    const w: usize = state_array.*.items[0].items[0].items.len;
+    var C = std.ArrayList(std.ArrayList(u8)).init(alloc);
+    var C_inner = std.ArrayList(u8).init(alloc);
+    try C_inner.appendNTimes(0, w);
+    var tc1: usize = 0;
+    while (tc1 < 5) {
+        try C.append(try clone(C_inner));
+        tc1 += 1;
+    }
+    var D = std.ArrayList(std.ArrayList(u8)).init(alloc);
+    var D_inner = std.ArrayList(u8).init(alloc);
+    try D_inner.appendNTimes(0, w);
+    var tc2: usize = 0;
+    while (tc2 < 5) {
+        try D.append(try clone(D_inner));
+        tc2 += 1;
+    }
     var x: usize = 0;
     while (x < 5) {
         const actual_x: usize = (x + 2) % 5;
@@ -134,7 +139,7 @@ pub fn theta(state_array: *StateArrayType) void {
                 xor ^= state_array.*.items[actual_x].items[actual_y].items[z];
                 y += 1;
             }
-            C[actual_x][z] = xor;
+            C.items[actual_x].items[z] = xor;
             z += 1;
         }
         x += 1;
@@ -145,9 +150,9 @@ pub fn theta(state_array: *StateArrayType) void {
         const actual_x_D: usize = (x_D + 2) % 5;
         var z_D: usize = 0;
         while (z_D < w) {
-            var xor_D: i32 = 0;
-            xor_D ^= C[(actual_x_D - 1) % 5][z_D] ^ C[(actual_x_D + 1) % 5][@intCast(usize, (@intCast(i32, z_D) - 1) % 5)];
-            D[actual_x_D][z_D] = xor_D;
+            var xor_D: u8 = 0;
+            xor_D ^= C.items[@intCast(usize, @mod(@intCast(i32, actual_x_D) - 1, 5))].items[z_D] ^ C.items[(actual_x_D + 1) % 5].items[@intCast(usize, @mod(@intCast(i32, z_D) - 1, 5))];
+            D.items[actual_x_D].items[z_D] = xor_D;
             z_D += 1;
         }
         x_D += 1;
@@ -160,7 +165,7 @@ pub fn theta(state_array: *StateArrayType) void {
             var actual_y_final: usize = (y_final + 2) % 5;
             var z_final: usize = 0;
             while (z_final < w) {
-                state_array.*.items[actual_x_final].items[actual_y_final].items[z_final] ^= D[actual_x_final][z_final];
+                state_array.*.items[actual_x_final].items[actual_y_final].items[z_final] ^= D.items[actual_x_final].items[z_final];
                 z_final += 1;
             }
             y_final += 1;
@@ -169,22 +174,30 @@ pub fn theta(state_array: *StateArrayType) void {
     }
 }
 
-pub fn RND(state_array: *StateArrayType, i: usize) void {
-    iota(chi(pi(rho(theta(state_array)))), i);
+pub fn RND(state_array: *StateArrayType, i: usize) !void {
+    try theta(state_array);
+    rho(state_array);
+    pi(state_array);
+    chi(state_array);
+    try iota(state_array, i);
 }
 
-pub fn keccak(b: usize, n: usize, s: []u8) std.ArrayList(u8) {
+pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
     const w: usize = b / 25;
     const l: usize = std.math.log2(w);
     var state_array: StateArrayType = StateArrayType.init(alloc);
     var row_state_array = std.ArrayList(std.ArrayList(u8)).init(alloc);
-    var col_state_array = try std.ArrayList(u8).init(alloc);
+    var col_state_array = std.ArrayList(u8).init(alloc);
     try col_state_array.appendNTimes(0, w);
     while (row_state_array.items.len < 5) {
-        try row_state_array.append(col_state_array.clone());
+        try row_state_array.append(try clone(col_state_array));
     }
     while (state_array.items.len < 5) {
-        try state_array.append(row_state_array.clone());
+        var clone_row_state_arr = std.ArrayList(std.ArrayList(u8)).init(alloc);
+        for (row_state_array.items) |val| {
+            try clone_row_state_arr.append(try clone(val));
+        }
+        try state_array.append(clone_row_state_arr);
     }
 
     var x: usize = 0;
@@ -195,7 +208,7 @@ pub fn keccak(b: usize, n: usize, s: []u8) std.ArrayList(u8) {
             const actual_y: usize = (y + 2) % 5;
             var z: usize = 0;
             while (z < w) {
-                state_array.*.items[actual_x].items[actual_y].items[z] = s[w * (5 * y + x) + z];
+                state_array.items[actual_x].items[actual_y].items[z] = s[w * (5 * y + x) + z];
                 z += 1;
             }
             y += 1;
@@ -203,14 +216,14 @@ pub fn keccak(b: usize, n: usize, s: []u8) std.ArrayList(u8) {
         x += 1;
     }
 
-    var ir: i32 = 12 + 2 * l - n;
-    var stop: i32 = 12 + 2 * l - 1;
+    var ir: usize = (12 + 2 * l) - n;
+    var stop: usize = (12 + 2 * l) - 1;
     while (ir <= stop) {
-        RND(state_array, ir);
+        try RND(&state_array, ir);
         ir += 1;
     }
 
-    var S = std.ArrayList(i32).init(alloc);
+    var S = std.ArrayList(u8).init(alloc);
     defer S.deinit();
 
     var y_s: usize = 0;
@@ -221,7 +234,7 @@ pub fn keccak(b: usize, n: usize, s: []u8) std.ArrayList(u8) {
             var actual_x_s: usize = (y_s + 2) % 5;
             var z_s: usize = 0;
             while (z_s < w) {
-                S.append(state_array.*.items[actual_x_s].items[actual_y_s].items[z_s]);
+                try S.append(state_array.items[actual_x_s].items[actual_y_s].items[z_s]);
                 z_s += 1;
             }
             x_s += 1;
@@ -231,20 +244,19 @@ pub fn keccak(b: usize, n: usize, s: []u8) std.ArrayList(u8) {
     return S;
 }
 
-fn sponge(f: fn (b: usize, n: usize, s: []u8) void, pad: fn (x: i32, m: i32) void, r: usize, n: []u8, d: usize, b: usize) std.ArrayList(i32) {
-    var P = std.ArrayList(i32).init(alloc);
+fn sponge(f: fn (b: usize, n: usize, s: []u8) anyerror!std.ArrayList(u8), pad: fn (x: i32, m: i32) anyerror!std.ArrayList(u8), r: usize, n: []u8, d: usize, b: usize, num_rounds: usize) !std.ArrayList(u8) {
+    var P = std.ArrayList(u8).init(alloc);
     defer P.deinit();
     for (n) |val| {
-        P.append(val);
+        try P.append(val);
     }
-    P.appendSlice(pad(r, n.len).items);
-    var lenpr: i32 = P.items.len / r;
-    var c: i32 = b - r;
-    _ = c;
-    var S = std.ArrayList(i32).init(alloc);
+    try P.appendSlice((try pad(@intCast(i32, r), @intCast(i32, n.len))).items);
+    var lenpr: i32 = @divFloor(@intCast(i32, P.items.len), @intCast(i32, r));
+    var c: usize = b - r;
+    var S = std.ArrayList(u8).init(alloc);
     defer S.deinit();
     while (S.items.len < b) {
-        S.append(0);
+        try S.append(0);
     }
     var splitr = std.ArrayList(std.ArrayList(u8)).init(alloc);
     defer splitr.deinit();
@@ -254,17 +266,18 @@ fn sponge(f: fn (b: usize, n: usize, s: []u8) void, pad: fn (x: i32, m: i32) voi
         defer subP.deinit();
         var pidx: usize = 0;
         while (pidx < r) {
-            subP.append(P.items[pidx + (section * r)]);
+            try subP.append(P.items[pidx + (section * r)]);
             pidx += 1;
         }
-        splitr.append(subP.clone());
+        try subP.appendNTimes(0, c);
+        try splitr.append(try clone(subP));
         section += 1;
     }
     var i: usize = 0;
     while (i < lenpr) {
-        string_xor(S, splitr[i]);
-        var new_S = f(b, S.items.len, S.items);
-        for (new_S) |val, index| {
+        string_xor(&S, &splitr.items[i]);
+        var new_S = try f(b, num_rounds, S.items);
+        for (new_S.items) |val, index| {
             S.items[index] = val;
         }
         i += 1;
@@ -274,20 +287,20 @@ fn sponge(f: fn (b: usize, n: usize, s: []u8) void, pad: fn (x: i32, m: i32) voi
     while (true) {
         var ri: usize = 0;
         while (ri < r) {
-            Z.append(S.items[ri]);
+            try Z.append(S.items[ri]);
             ri += 1;
         }
         if (d <= Z.items.len) {
             var truncd = std.ArrayList(u8).init(alloc);
             var tdi: usize = 0;
             while (tdi < d) {
-                truncd.append(Z.items[tdi]);
+                try truncd.append(Z.items[tdi]);
                 tdi += 1;
             }
             return truncd;
         }
-        var new_S = f(b, S.items.len, S.items);
-        for (new_S) |val, index| {
+        var new_S = try f(b, num_rounds, S.items);
+        for (new_S.items) |val, index| {
             S.items[index] = val;
         }
     }
@@ -311,6 +324,32 @@ pub fn pad10(x: i32, m: i32) !std.ArrayList(u8) {
     }
     try P.append(1);
     return P;
+}
+
+pub fn clone(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
+    var new_arr = try std.ArrayList(u8).initCapacity(alloc, arr.capacity);
+    new_arr.items.len = arr.items.len;
+    std.mem.copy(u8, new_arr.items, arr.items);
+    return new_arr;
+}
+
+pub fn convertToBitStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
+    var new_arr_rev = std.ArrayList(u8).init(alloc);
+    defer new_arr_rev.deinit();
+    for (arr.items) |val| {
+        var ascii_val = val;
+        while (ascii_val > 0) {
+            try new_arr_rev.append(ascii_val & 1);
+            ascii_val >>= 1;
+        }
+    }
+    var new_arr = std.ArrayList(u8).init(alloc);
+    var idx: usize = 0;
+    while (idx < new_arr_rev.items.len) {
+        try new_arr.append(new_arr_rev.items[new_arr_rev.items.len - 1 - idx]);
+        idx += 1;
+    }
+    return new_arr;
 }
 
 // KECCAK-f[b] = KECCAK-p[b,12+2l]
@@ -343,4 +382,22 @@ test "testing pad10" {
     try std.testing.expect(pad10f.items.len == 2);
     var pad10s = try pad10(2, 3);
     try std.testing.expect(pad10s.items.len == 3);
+}
+
+test "testing rc" {
+    var rconst: u8 = try rc(256);
+    try std.testing.expect(rconst == 0);
+}
+
+test "testing keccak sha3-256" {
+    const str = [_]u8{ 'h', 'e', 'l', 'l', 'o' };
+    var arrl = std.ArrayList(u8).init(alloc);
+    for (str) |val| {
+        try arrl.append(val);
+    }
+    var bitstr = try convertToBitStr(arrl);
+    try bitstr.append(0);
+    try bitstr.append(1);
+    var digest = try sponge(keccak, pad10, 1600 - 2 * 256, bitstr.items, 256, 1600, 24);
+    _ = digest;
 }
