@@ -1,9 +1,9 @@
+//! Keep track of where you place 'defer <array list>.deinit()' because that might mess up
+//! the result that you get.
 const std = @import("std");
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var alloc = gpa.allocator();
 const StateArrayType = std.ArrayList(std.ArrayList(std.ArrayList(u8)));
-//! Keep track of where you place 'defer <array list>.deninit()' because that might mess up
-//! the result that you get.
 
 pub fn rc(t: usize) !u8 {
     const tmod: usize = t % 255;
@@ -188,8 +188,11 @@ pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
     const w: usize = b / 25;
     const l: usize = std.math.log2(w);
     var state_array: StateArrayType = StateArrayType.init(alloc);
+    defer state_array.deinit();
     var row_state_array = std.ArrayList(std.ArrayList(u8)).init(alloc);
+    defer row_state_array.deinit();
     var col_state_array = std.ArrayList(u8).init(alloc);
+    defer col_state_array.deinit();
     try col_state_array.appendNTimes(0, w);
     while (row_state_array.items.len < 5) {
         try row_state_array.append(try clone(col_state_array));
@@ -242,10 +245,17 @@ pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
         }
         y_s += 1;
     }
+
+    for (state_array.items) |row_state_arr| {
+        for (row_state_arr.items) |col_state_arr| {
+            col_state_arr.deinit();
+        }
+        row_state_arr.deinit();
+    }
     return S;
 }
 
-fn sponge(f: fn (b: usize, n: usize, s: []u8) anyerror!std.ArrayList(u8), pad: fn (x: i32, m: i32) anyerror!std.ArrayList(u8), r: usize, n: []u8, d: usize, b: usize, num_rounds: usize) !std.ArrayList(u8) {
+pub fn sponge(f: fn (b: usize, n: usize, s: []u8) anyerror!std.ArrayList(u8), pad: fn (x: i32, m: i32) anyerror!std.ArrayList(u8), r: usize, n: []u8, d: usize, b: usize, num_rounds: usize) !std.ArrayList(u8) {
     var P = std.ArrayList(u8).init(alloc);
     defer P.deinit();
     for (n) |val| {
@@ -392,15 +402,3 @@ test "testing rc" {
     try std.testing.expect(rconst == 0);
 }
 
-test "testing keccak sha3-256" {
-    const str = [_]u8{ 'h', 'e', 'l', 'l', 'o' };
-    var arrl = std.ArrayList(u8).init(alloc);
-    for (str) |val| {
-        try arrl.append(val);
-    }
-    var bitstr = try convertToBitStr(arrl);
-    try bitstr.append(0);
-    try bitstr.append(1);
-    var digest = try sponge(keccak, pad10, 1600 - 2 * 256, bitstr.items, 256, 1600, 24);
-    try std.testing.expect(digest.items.len == 256);
-}
