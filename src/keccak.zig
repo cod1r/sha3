@@ -224,7 +224,6 @@ pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
     }
 
     var S = std.ArrayList(u8).init(alloc);
-    defer S.deinit();
 
     var y_s: usize = 0;
     while (y_s < 5) {
@@ -338,9 +337,11 @@ pub fn convertToBitStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     defer new_arr_rev.deinit();
     for (arr.items) |val| {
         var ascii_val = val;
-        while (ascii_val > 0) {
+        var cnt: usize = 0;
+        while (cnt < 8) {
             try new_arr_rev.append(ascii_val & 1);
             ascii_val >>= 1;
+            cnt += 1;
         }
     }
     var new_arr = std.ArrayList(u8).init(alloc);
@@ -399,5 +400,5 @@ test "testing keccak sha3-256" {
     try bitstr.append(0);
     try bitstr.append(1);
     var digest = try sponge(keccak, pad10, 1600 - 2 * 256, bitstr.items, 256, 1600, 24);
-    _ = digest;
+    try std.testing.expect(digest.items.len == 256);
 }
