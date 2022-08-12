@@ -326,7 +326,7 @@ pub fn string_xor(string_one: *std.ArrayList(u8), string_two: *std.ArrayList(u8)
     }
 }
 
-pub fn pad10(x: i32, m: i32) !std.ArrayList(u8) {
+pub fn pad101(x: i32, m: i32) !std.ArrayList(u8) {
     var j: i32 = @mod(-m - 2, x);
     var P = std.ArrayList(u8).init(alloc);
     try P.append(1);
@@ -365,6 +365,26 @@ pub fn convertToBitStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     return new_arr;
 }
 
+pub fn convertToStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
+    var str = std.ArrayList(u8).init(alloc);
+    const len_per_char: usize = 4;
+    var value: u8 = 0;
+    var place: u8 = len_per_char - 1;
+    for (arr.items) |val, index| {
+        if (index % len_per_char == 0 and index > 0) {
+            try str.append(value);
+            value = 0;
+            place = len_per_char - 1;
+        }
+        value += std.math.pow(u8, 2, place) * val;
+        if ((index + 1) % len_per_char != 0) {
+            place -= 1;
+        }
+    }
+    try str.append(value);
+    return str;
+}
+
 // KECCAK-f[b] = KECCAK-p[b,12+2l]
 // KECCAK[c] = The KECCAK instance with KECCAK-f[1600] as the underlying permutation and capacity c.
 // SHA3-224(M) = KECCAK[448](M||01, 224);
@@ -390,11 +410,11 @@ test "testing string_xor" {
     }
 }
 
-test "testing pad10" {
-    var pad10f = try pad10(2, 2);
-    try std.testing.expect(pad10f.items.len == 2);
-    var pad10s = try pad10(2, 3);
-    try std.testing.expect(pad10s.items.len == 3);
+test "testing pad101" {
+    var pad101f = try pad101(2, 2);
+    try std.testing.expect(pad101f.items.len == 2);
+    var pad101s = try pad101(2, 3);
+    try std.testing.expect(pad101s.items.len == 3);
 }
 
 test "testing rc" {
