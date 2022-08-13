@@ -136,14 +136,13 @@ pub fn theta(state_array: *StateArrayType) !void {
         const actual_x: usize = (x + 2) % 5;
         var z: usize = 0;
         while (z < w) {
-            var xor: u8 = 0;
-            var y: usize = 0;
-            while (y < 5) {
-                const actual_y: usize = (y + 2) % 5;
-                xor ^= state_array.*.items[actual_x].items[actual_y].items[z];
-                y += 1;
-            }
-            C.items[actual_x].items[z] = xor;
+            var sa_deref = state_array.*;
+            var first = sa_deref.items[actual_x].items[0].items[z];
+            var second = sa_deref.items[actual_x].items[1].items[z];
+            var third = sa_deref.items[actual_x].items[2].items[z];
+            var fourth = sa_deref.items[actual_x].items[3].items[z];
+            var fifth = sa_deref.items[actual_x].items[4].items[z];
+            C.items[actual_x].items[z] = first ^ second ^ third ^ fourth ^ fifth;
             z += 1;
         }
         x += 1;
@@ -478,4 +477,19 @@ test "testing convertToBitStr; input = 'jason'" {
         try std.testing.expect(val == correct[index]);
     }
     try std.testing.expect(bitstr.items.len == 40);
+}
+
+test "testing convertToHex" {
+    var fo = std.ArrayList(u8).init(alloc);
+    try fo.append(51);
+    var bs = try convertToBitStr(fo);
+    std.debug.print("\n", .{});
+    for (bs.items) |val| {
+        std.debug.print("{c}", .{val + 48});
+    }
+    var hexarr = try convertToHex(bs);
+    std.debug.print("\n{s}\n", .{hexarr.items});
+    for (hexarr.items) |val| {
+        try std.testing.expect(val == 51);
+    }
 }
