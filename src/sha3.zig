@@ -108,3 +108,19 @@ test "testing keccak sha3-256; input = 'zzzzzz' but not with bit string input" {
     try std.testing.expect(str_digest.items.len == 64);
     try std.testing.expect(digest.items.len == 256);
 }
+
+test "testing keccak sha3-256; input = <alphabet>" {
+    const str = [_]u8{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+    var arrl = std.ArrayList(u8).init(alloc);
+    try arrl.appendSlice(str[0..]);
+    var bitstr = try keccak.convertToBitStr(arrl);
+    try bitstr.append(0);
+    try bitstr.append(1);
+    var digest = try sha3_256(bitstr);
+    defer digest.deinit();
+    var str_digest = try keccak.convertToHex(digest);
+    defer str_digest.deinit();
+    std.debug.print("\n{s}\n", .{str_digest.items});
+    try std.testing.expect(str_digest.items.len == 64);
+    try std.testing.expect(digest.items.len == 256);
+}

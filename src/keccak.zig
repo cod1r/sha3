@@ -33,8 +33,8 @@ pub fn iota(state_array: *StateArrayType, i: usize) !void {
     const w: usize = state_array.*.items[0].items[0].items.len;
     var RC = std.ArrayList(u8).init(alloc);
     defer RC.deinit();
-    const l: usize = std.math.log2(w);
     try RC.appendNTimes(0, w);
+    const l: usize = std.math.log2(w);
     var j: usize = 0;
     while (j <= l) {
         RC.items[std.math.pow(usize, 2, j) - 1] = try rc(j + 7 * i);
@@ -316,6 +316,7 @@ pub fn sponge(
             return truncd;
         }
         var new_S = try f(b, num_rounds, S.items);
+        defer new_S.deinit();
         for (new_S.items) |val, index| {
             S.items[index] = val;
         }
