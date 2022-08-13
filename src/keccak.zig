@@ -1,16 +1,158 @@
-//! Keep track of where you place 'defer <array list>.deinit()' because that might mess up
-//! the result that you get.
+//! Keep track of where you place 'defer <array list>.deinit()' 
+//! because that might mess up the result that you get.
 const std = @import("std");
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true }){};
 var alloc = gpa.allocator();
 const StateArrayType = std.ArrayList(std.ArrayList(std.ArrayList(u8)));
 
-pub fn rc(t: usize) !u8 {
+fn index(i: usize) usize {
+    return (i + 2) % 5;
+}
+
+fn theta(state_array: StateArrayType) !void {
+    const w: usize = state_array.items[0].items[0].items.len;
+    var C = std.ArrayList(std.ArrayList(u8)).init(alloc);
+    var C_inner = std.ArrayList(u8).init(alloc);
+    try C_inner.appendNTimes(0, w);
+    var tc1: usize = 0;
+    while (tc1 < 5) {
+        try C.append(try clone(C_inner));
+        tc1 += 1;
+    }
+    var D = std.ArrayList(std.ArrayList(u8)).init(alloc);
+    var D_inner = std.ArrayList(u8).init(alloc);
+    try D_inner.appendNTimes(0, w);
+    var tc2: usize = 0;
+    while (tc2 < 5) {
+        try D.append(try clone(D_inner));
+        tc2 += 1;
+    }
+
+    {
+        var x: usize = 0;
+        while (x < 5) {
+            var z: usize = 0;
+            while (z < w) {
+                var first = state_array.items[index(x)].items[0].items[z];
+                var second = state_array.items[index(x)].items[1].items[z];
+                var third = state_array.items[index(x)].items[2].items[z];
+                var fourth = state_array.items[index(x)].items[3].items[z];
+                var fifth = state_array.items[index(x)].items[4].items[z];
+                C.items[index(x)].items[z] = first ^ second ^ third ^ fourth ^ fifth;
+                z += 1;
+            }
+            x += 1;
+        }
+    }
+
+    {
+        var x: usize = 0;
+        while (x < 5) {
+            var z: usize = 0;
+            while (z < w) {
+                var mod_x = @mod(@intCast(i32, index(x)) - 1, 5);
+                var mod_x_casted = @intCast(usize, mod_x);
+                var first: u8 = C.items[mod_x_casted].items[z];
+                var mod_z = @mod(@intCast(i32, z) - 1, 5);
+                var mod_z_casted = @intCast(usize, mod_z);
+                var second: u8 = C.items[(index(x) + 1) % 5].items[mod_z_casted];
+                D.items[index(x)].items[z] = first ^ second;
+                z += 1;
+            }
+            x += 1;
+        }
+    }
+
+    {
+        var x: usize = 0;
+        while (x < 5) {
+            var y: usize = 0;
+            while (y < 5) {
+                var z: usize = 0;
+                while (z < w) {
+                    state_array.items[index(x)].items[index(y)].items[z] ^= D.items[index(x)].items[z];
+                    z += 1;
+                }
+                y += 1;
+            }
+            x += 1;
+        }
+    }
+}
+
+fn rho(state_array: StateArrayType) void {
+    const w: usize = state_array.items[0].items[0].items.len;
+    var x: usize = 1;
+    var y: usize = 0;
+    var t: usize = 0;
+    while (t <= 23) {
+        var z: usize = 0;
+        while (z < w) {
+            var t_sqrd: i32 = @divFloor(
+                (@intCast(i32, t) + 1) * (@intCast(i32, t) + 2),
+                2,
+            );
+            var modified_z: usize = @intCast(
+                usize,
+                @mod(
+                    @intCast(i32, z) - t_sqrd,
+                    @intCast(i32, w),
+                ),
+            );
+            state_array.items[index(x)].items[index(y)].items[z] =
+                state_array.items[index(x)].items[index(y)].items[modified_z];
+            z += 1;
+        }
+        var temp: usize = x;
+        x = y;
+        y = (2 * temp + 3 * y) % 5;
+        t += 1;
+    }
+}
+
+fn pi(state_array: StateArrayType) void {
+    const w: usize = state_array.items[0].items[0].items.len;
+    var x: usize = 0;
+    while (x < 5) {
+        var y: usize = 0;
+        while (y < 5) {
+            var z: usize = 0;
+            while (z < w) {
+                state_array.items[index(x)].items[index(y)].items[z] =
+                    state_array.items[(index(x) + (3 * index(y))) % 5].items[index(x)].items[z];
+                z += 1;
+            }
+            y += 1;
+        }
+        x += 1;
+    }
+}
+
+fn chi(state_array: StateArrayType) void {
+    const w: usize = state_array.items[0].items[0].items.len;
+    var x: usize = 0;
+    while (x < 5) {
+        var y: usize = 0;
+        while (y < 5) {
+            var z: usize = 0;
+            while (z < w) {
+                const first: u8 = state_array.items[(index(x) + 1) % 5].items[index(y)].items[z] ^ 1;
+                const second: u8 = state_array.items[(index(x) + 2) % 5].items[index(y)].items[z];
+                state_array.items[index(x)].items[index(y)].items[z] ^= (first & second);
+                z += 1;
+            }
+            y += 1;
+        }
+        x += 1;
+    }
+}
+
+fn rc(t: usize) !u8 {
     const tmod: usize = t % 255;
     if (tmod == 0) {
         return 1;
     }
-    var R: std.ArrayList(u8) = std.ArrayList(u8).init(alloc);
+    var R = std.ArrayList(u8).init(alloc);
     try R.append(1);
     try R.appendNTimes(0, 7);
     defer R.deinit();
@@ -29,8 +171,8 @@ pub fn rc(t: usize) !u8 {
     return R.items[0];
 }
 
-pub fn iota(state_array: *StateArrayType, i: usize) !void {
-    const w: usize = state_array.*.items[0].items[0].items.len;
+fn iota(state_array: StateArrayType, i: usize) !void {
+    const w: usize = state_array.items[0].items[0].items.len;
     var RC = std.ArrayList(u8).init(alloc);
     defer RC.deinit();
     try RC.appendNTimes(0, w);
@@ -41,144 +183,13 @@ pub fn iota(state_array: *StateArrayType, i: usize) !void {
         j += 1;
     }
     var z: usize = 0;
-    var x: usize = (0 + 2) % 5;
-    var y: usize = (0 + 2) % 5;
     while (z < w) {
-        state_array.*.items[x].items[y].items[z] ^= RC.items[z];
+        state_array.items[index(0)].items[index(0)].items[z] ^= RC.items[z];
         z += 1;
     }
 }
 
-pub fn chi(state_array: *StateArrayType) void {
-    const w: usize = state_array.*.items[0].items[0].items.len;
-    var x: usize = 0;
-    while (x < 5) {
-        const actual_x: usize = (x + 2) % 5;
-        var y: usize = 0;
-        while (y < 5) {
-            const actual_y: usize = (y + 2) % 5;
-            var z: usize = 0;
-            while (z < w) {
-                const first: u8 = state_array.*.items[(actual_x + 1) % 5].items[actual_y].items[z];
-                const second: u8 = state_array.*.items[(actual_x + 2) % 5].items[actual_y].items[z];
-                const val: u8 = (first ^ 1) & second;
-                state_array.*.items[actual_x].items[actual_y].items[z] ^= val;
-                z += 1;
-            }
-            y += 1;
-        }
-        x += 1;
-    }
-}
-
-pub fn pi(state_array: *StateArrayType) void {
-    const w: usize = state_array.*.items[0].items[0].items.len;
-    var x: usize = 0;
-    while (x < 5) {
-        const actual_x: usize = (x + 2) % 5;
-        var y: usize = 0;
-        while (y < 5) {
-            const actual_y: usize = (y + 2) % 5;
-            var z: usize = 0;
-            while (z < w) {
-                var val: u8 = state_array.*.items[(actual_x + 3 * actual_y) % 5].items[actual_x].items[z];
-                state_array.*.items[actual_x].items[actual_y].items[z] = val;
-                z += 1;
-            }
-            y += 1;
-        }
-        x += 1;
-    }
-}
-
-pub fn rho(state_array: *StateArrayType) void {
-    const w: usize = state_array.*.items[0].items[0].items.len;
-    var x: usize = 1;
-    var y: usize = 0;
-    var t: usize = 0;
-    while (t <= 23) {
-        var z: usize = 0;
-        while (z < w) {
-            var actual_x: usize = (x + 2) % 5;
-            var actual_y: usize = (y + 2) % 5;
-            var t_sqrd: i32 = @divFloor((@intCast(i32, t) + 1) * (@intCast(i32, t) + 2), 2);
-            var modified_z: usize = @intCast(usize, @mod(@intCast(i32, z) - t_sqrd, @intCast(i32, w)));
-            state_array.*.items[actual_x].items[actual_y].items[z] = state_array.*.items[actual_x].items[actual_y].items[modified_z];
-            z += 1;
-        }
-        var temp: usize = x;
-        x = y;
-        y = (2 * temp + 3 * y) % 5;
-        t += 1;
-    }
-}
-
-pub fn theta(state_array: *StateArrayType) !void {
-    const w: usize = state_array.*.items[0].items[0].items.len;
-    var C = std.ArrayList(std.ArrayList(u8)).init(alloc);
-    var C_inner = std.ArrayList(u8).init(alloc);
-    try C_inner.appendNTimes(0, w);
-    var tc1: usize = 0;
-    while (tc1 < 5) {
-        try C.append(try clone(C_inner));
-        tc1 += 1;
-    }
-    var D = std.ArrayList(std.ArrayList(u8)).init(alloc);
-    var D_inner = std.ArrayList(u8).init(alloc);
-    try D_inner.appendNTimes(0, w);
-    var tc2: usize = 0;
-    while (tc2 < 5) {
-        try D.append(try clone(D_inner));
-        tc2 += 1;
-    }
-    var x: usize = 0;
-    while (x < 5) {
-        const actual_x: usize = (x + 2) % 5;
-        var z: usize = 0;
-        while (z < w) {
-            var sa_deref = state_array.*;
-            var first = sa_deref.items[actual_x].items[0].items[z];
-            var second = sa_deref.items[actual_x].items[1].items[z];
-            var third = sa_deref.items[actual_x].items[2].items[z];
-            var fourth = sa_deref.items[actual_x].items[3].items[z];
-            var fifth = sa_deref.items[actual_x].items[4].items[z];
-            C.items[actual_x].items[z] = first ^ second ^ third ^ fourth ^ fifth;
-            z += 1;
-        }
-        x += 1;
-    }
-
-    var x_D: usize = 0;
-    while (x_D < 5) {
-        const actual_x_D: usize = (x_D + 2) % 5;
-        var z_D: usize = 0;
-        while (z_D < w) {
-            var first: u8 = C.items[@intCast(usize, @mod(@intCast(i32, actual_x_D) - 1, 5))].items[z_D];
-            var second: u8 = C.items[(actual_x_D + 1) % 5].items[@intCast(usize, @mod(@intCast(i32, z_D) - 1, 5))];
-            D.items[actual_x_D].items[z_D] = first ^ second;
-            z_D += 1;
-        }
-        x_D += 1;
-    }
-
-    var x_final: usize = 0;
-    while (x_final < 5) {
-        var actual_x_final: usize = (x_final + 2) % 5;
-        var y_final: usize = 0;
-        while (y_final < 5) {
-            var actual_y_final: usize = (y_final + 2) % 5;
-            var z_final: usize = 0;
-            while (z_final < w) {
-                state_array.*.items[actual_x_final].items[actual_y_final].items[z_final] ^= D.items[actual_x_final].items[z_final];
-                z_final += 1;
-            }
-            y_final += 1;
-        }
-        x_final += 1;
-    }
-}
-
-pub fn RND(state_array: *StateArrayType, i: usize) !void {
+fn RND(state_array: StateArrayType, i: usize) !void {
     try theta(state_array);
     rho(state_array);
     pi(state_array);
@@ -195,6 +206,7 @@ pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
     defer row_state_array.deinit();
     var col_state_array = std.ArrayList(u8).init(alloc);
     defer col_state_array.deinit();
+
     try col_state_array.appendNTimes(0, w);
     while (row_state_array.items.len < 5) {
         try row_state_array.append(try clone(col_state_array));
@@ -207,45 +219,47 @@ pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
         try state_array.append(clone_row_state_arr);
     }
 
-    var x: usize = 0;
-    while (x < 5) {
-        const actual_x: usize = (x + 2) % 5;
-        var y: usize = 0;
-        while (y < 5) {
-            const actual_y: usize = (y + 2) % 5;
-            var z: usize = 0;
-            while (z < w) {
-                state_array.items[actual_x].items[actual_y].items[z] = s[w * (5 * y + x) + z];
-                z += 1;
+    {
+        // converting input to state array
+        var x: usize = 0;
+        while (x < 5) {
+            var y: usize = 0;
+            while (y < 5) {
+                var z: usize = 0;
+                while (z < w) {
+                    state_array.items[index(x)].items[index(y)].items[z] = s[w * (5 * (index(y)) + (index(x))) + z];
+                    z += 1;
+                }
+                y += 1;
             }
-            y += 1;
+            x += 1;
         }
-        x += 1;
     }
 
     var ir: usize = (12 + 2 * l) - n;
     var stop: usize = (12 + 2 * l) - 1;
     while (ir <= stop) {
-        try RND(&state_array, ir);
+        try RND(state_array, ir);
         ir += 1;
     }
 
     var S = std.ArrayList(u8).init(alloc);
-
-    var y_s: usize = 0;
-    while (y_s < 5) {
-        var actual_y_s: usize = (y_s + 2) % 5;
-        var x_s: usize = 0;
-        while (x_s < 5) {
-            var actual_x_s: usize = (x_s + 2) % 5;
-            var z_s: usize = 0;
-            while (z_s < w) {
-                try S.append(state_array.items[actual_x_s].items[actual_y_s].items[z_s]);
-                z_s += 1;
+    {
+        // converting state array to string output
+        var y: usize = 0;
+        while (y < 5) {
+            var x: usize = 0;
+            while (x < 5) {
+                var z: usize = 0;
+                while (z < w) {
+                    std.debug.assert(state_array.items[index(x)].items[index(y)].items[z] <= 1);
+                    try S.append(state_array.items[index(x)].items[index(y)].items[z]);
+                    z += 1;
+                }
+                x += 1;
             }
-            x_s += 1;
+            y += 1;
         }
-        y_s += 1;
     }
 
     for (state_array.items) |row_state_arr| {
@@ -254,6 +268,7 @@ pub fn keccak(b: usize, n: usize, s: []u8) !std.ArrayList(u8) {
         }
         row_state_arr.deinit();
     }
+    std.debug.assert(S.items.len == b);
     return S;
 }
 
@@ -272,11 +287,14 @@ pub fn sponge(
     try P.appendSlice((try pad(@intCast(i32, r), @intCast(i32, n.len))).items);
     var lenpr: i32 = @divFloor(@intCast(i32, P.items.len), @intCast(i32, r));
     var c: usize = b - r;
+
     var S = std.ArrayList(u8).init(alloc);
     defer S.deinit();
     try S.appendNTimes(0, b);
+
     var splitr = std.ArrayList(std.ArrayList(u8)).init(alloc);
     defer splitr.deinit();
+
     var section: usize = 0;
     while (section < lenpr) {
         var subP = std.ArrayList(u8).init(alloc);
@@ -289,6 +307,7 @@ pub fn sponge(
         try splitr.append(try clone(subP));
         section += 1;
     }
+
     var i: usize = 0;
     while (i < lenpr) {
         var concat_zero = try clone(splitr.items[i]);
@@ -297,11 +316,12 @@ pub fn sponge(
         std.debug.assert(concat_zero.items.len == 1600);
         string_xor(&S, &concat_zero);
         var new_S = try f(b, num_rounds, S.items);
-        for (new_S.items) |val, index| {
-            S.items[index] = val;
+        for (new_S.items) |val, idx| {
+            S.items[idx] = val;
         }
         i += 1;
     }
+
     var Z = std.ArrayList(u8).init(alloc);
     defer Z.deinit();
     while (true) {
@@ -316,18 +336,9 @@ pub fn sponge(
         }
         var new_S = try f(b, num_rounds, S.items);
         defer new_S.deinit();
-        for (new_S.items) |val, index| {
-            S.items[index] = val;
+        for (new_S.items) |val, idx| {
+            S.items[idx] = val;
         }
-    }
-}
-
-/// this function xor's string_one and string_two and keeps result in string_one
-pub fn string_xor(string_one: *std.ArrayList(u8), string_two: *std.ArrayList(u8)) void {
-    var index: usize = 0;
-    while (index < string_one.items.len) {
-        string_one.items[index] ^= string_two.items[index];
-        index += 1;
     }
 }
 
@@ -340,6 +351,15 @@ pub fn pad101(x: i32, m: i32) !std.ArrayList(u8) {
     }
     try P.append(1);
     return P;
+}
+
+/// this function xor's string_one and string_two and keeps result in string_one
+pub fn string_xor(string_one: *std.ArrayList(u8), string_two: *std.ArrayList(u8)) void {
+    var idx: usize = 0;
+    while (idx < string_one.items.len) {
+        string_one.items[idx] ^= string_two.items[idx];
+        idx += 1;
+    }
 }
 
 pub fn clone(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
@@ -374,16 +394,16 @@ pub fn convertToBitStr(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     return new_arr;
 }
 
-pub fn convertToHex(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
+pub fn convertToHexFromBin(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     var str = std.ArrayList(u8).init(alloc);
     const len_per_char: usize = 4;
     var value: u8 = 0;
     var place: u8 = len_per_char - 1;
-    for (arr.items) |val, index| {
-        if (index % len_per_char == 0 and index > 0) {
+    for (arr.items) |val, idx| {
+        if (idx % len_per_char == 0 and idx > 0) {
             if (value >= 10) {
                 std.debug.assert(value >= 10 and value < 16);
-                try str.append(97 + (16 - value));
+                try str.append(97 + (value - 10));
             } else {
                 std.debug.assert(value >= 0 and value < 10);
                 try str.append(48 + value);
@@ -392,7 +412,7 @@ pub fn convertToHex(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
             place = len_per_char - 1;
         }
         value += std.math.pow(u8, 2, place) * val;
-        if ((index + 1) % len_per_char != 0) {
+        if ((idx + 1) % len_per_char != 0) {
             place -= 1;
         }
     }
@@ -406,12 +426,14 @@ pub fn convertToHex(arr: std.ArrayList(u8)) !std.ArrayList(u8) {
     return str;
 }
 
-// KECCAK-f[b] = KECCAK-p[b,12+2l]
-// KECCAK[c] = The KECCAK instance with KECCAK-f[1600] as the underlying permutation and capacity c.
-// SHA3-224(M) = KECCAK[448](M||01, 224);
-// SHA3-256(M)= KECCAK[512](M||01, 256);
-// SHA3-384(M)= KECCAK[768](M||01, 384);
-// SHA3-512(M)= KECCAK[1024](M||01, 512).
+fn print(arr: std.ArrayList(u8)) void {
+    std.debug.print("\n", .{});
+    for (arr.items) |val| {
+        std.debug.print("{} ", .{val});
+    }
+    std.debug.print("\n", .{});
+}
+
 test "testing string_xor" {
     var string_one = std.ArrayList(u8).init(alloc);
     try string_one.appendNTimes(0, 4);
@@ -424,72 +446,22 @@ test "testing string_xor" {
     string_two.items[3] = 1;
     string_xor(&string_one, &string_two);
     try std.testing.expect(string_one.items[0] == 0);
-    var index: usize = 1;
-    while (index < 4) {
-        try std.testing.expect(string_one.items[index] == 1);
-        index += 1;
+    var idx: usize = 1;
+    while (idx < 4) {
+        try std.testing.expect(string_one.items[idx] == 1);
+        idx += 1;
     }
 }
 
-test "testing pad101" {
-    var pad101f = try pad101(2, 2);
-    try std.testing.expect(pad101f.items.len == 2);
-    var pad101s = try pad101(2, 3);
-    try std.testing.expect(pad101s.items.len == 3);
-}
-
-test "testing rc" {
-    var rconst: u8 = try rc(256);
-    try std.testing.expect(rconst == 0);
-}
-
-test "testing convertToBitStr; input = 'hello'" {
-    // 0110100001100101011011000110110001101111 - correct result
-    const correct = [_]u8{ 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1 };
-    const str = [_]u8{ 'h', 'e', 'l', 'l', 'o' };
-    var arrl = std.ArrayList(u8).init(alloc);
-    try arrl.appendSlice(str[0..]);
-    var bitstr = try convertToBitStr(arrl);
-    std.debug.print("\n", .{});
-    for (bitstr.items) |val| {
-        std.debug.print("{}", .{val});
-    }
-    std.debug.print("\n", .{});
-    for (bitstr.items) |val, index| {
-        try std.testing.expect(val == correct[index]);
-    }
-    try std.testing.expect(bitstr.items.len == 40);
-}
-
-test "testing convertToBitStr; input = 'jason'" {
-    // 0110101001100001011100110110111101101110 - correct result
-    const correct = [_]u8{ 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0 };
-    const str = [_]u8{ 'j', 'a', 's', 'o', 'n' };
-    var arrl = std.ArrayList(u8).init(alloc);
-    try arrl.appendSlice(str[0..]);
-    var bitstr = try convertToBitStr(arrl);
-    std.debug.print("\n", .{});
-    for (bitstr.items) |val| {
-        std.debug.print("{}", .{val});
-    }
-    std.debug.print("\n", .{});
-    for (bitstr.items) |val, index| {
-        try std.testing.expect(val == correct[index]);
-    }
-    try std.testing.expect(bitstr.items.len == 40);
-}
-
-test "testing convertToHex" {
-    var fo = std.ArrayList(u8).init(alloc);
-    try fo.append(51);
-    var bs = try convertToBitStr(fo);
+test "testing convertToHexFromBin; abcd" {
+    var alpha = [_]u8{ 10, 11, 12, 13 };
+    var alphaAL = std.ArrayList(u8).init(alloc);
+    try alphaAL.appendSlice(alpha[0..]);
+    var bs = try convertToBitStr(alphaAL);
     std.debug.print("\n", .{});
     for (bs.items) |val| {
         std.debug.print("{c}", .{val + 48});
     }
-    var hexarr = try convertToHex(bs);
-    std.debug.print("\n{s}\n", .{hexarr.items});
-    for (hexarr.items) |val| {
-        try std.testing.expect(val == 51);
-    }
+    var hs = try convertToHexFromBin(bs);
+    std.debug.print("\n{s}\n", .{hs.items});
 }
