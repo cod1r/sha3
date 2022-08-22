@@ -1,4 +1,4 @@
-# Implementation of the SHA-3 hashing algorithm (WIP)
+# Implementation of the SHA-3 hashing algorithm
 
 ## Resources used
 
